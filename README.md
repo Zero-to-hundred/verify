@@ -1,5 +1,13 @@
 # Z2H Verified
 
+> **This is not the live verification path.** As of 11 September 2026, Z2H
+> Verified runs inside the marketplace's own sandbox: a seller declares "built
+> with Jetpack" on their listing and does nothing else. This repository is kept
+> public at `v0` because the design was proven end to end here — including the
+> certificate check that proves which account owns a repository — and it is the
+> starting point if public, independently checkable verification is ever wanted
+> again. It is never tagged `v1`.
+
 This repository is the thing behind the **Z2H Verified** badge on a Zero to
 Hundred listing. It is public so you can read it: a badge whose checks nobody can
 inspect is worth nothing.
