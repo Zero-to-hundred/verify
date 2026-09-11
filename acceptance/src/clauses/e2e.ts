@@ -92,6 +92,24 @@ export async function runE2eClause(spec: string): Promise<ClauseResult> {
 
   const passed = report.stats?.expected ?? 0;
   const failed = report.stats?.unexpected ?? 0;
+  /**
+   * **Zero tests is a failure, not a pass.** A spec that ran nothing has proved
+   * nothing, and reporting it green is the shape of bug this runner exists to
+   * catch. Seen in the wild as `e2e: e2e/admin.spec.ts - 0 Playwright test(s)
+   * passed`, which a reader skims as success. A renamed spec, a `testDir` that
+   * no longer covers it, or a stray filter all land here.
+   */
+  if (failures.length === 0 && passed === 0) {
+    return finish(started, spec, `no Playwright tests ran in ${spec}`, [
+      {
+        message:
+          `${spec} ran zero tests, which is not a pass: a spec that ran nothing has ` +
+          "proved nothing. Check the file still exists and that playwright.config.ts " +
+          "still matches it.",
+      },
+    ]);
+  }
+
   const summary =
     failures.length === 0
       ? `${passed} Playwright test(s) passed in ${spec}`
