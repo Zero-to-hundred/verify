@@ -158,9 +158,15 @@ jobs:
         # their own per-feature `accept.ts` specs. `JETPACK_PROJECT_ROOT` names
         # the tree under test rather than letting the runner walk up from its own
         # location and find whichever root is nearer.
+        # `--tsconfig` is required, not decoration: the acceptance clauses reach
+        # into the seller's app through the `@/*` alias, and tsx only knows that
+        # mapping from this config. Its `paths` resolve to the seller's
+        # `apps/web/src` because `.z2h-verify/acceptance` sits at the same depth
+        # as `packages/acceptance` does in the kit.
         run: |
           JETPACK_PROJECT_ROOT="$GITHUB_WORKSPACE" \
-            pnpm --dir .z2h-verify/acceptance exec tsx src/cli.ts --all
+            pnpm --dir .z2h-verify/acceptance exec \
+              tsx --tsconfig tsconfig.run.json src/cli.ts --all
 
       - name: e2e
         id: e2e

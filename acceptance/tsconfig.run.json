@@ -1,0 +1,26 @@
+{
+  "//": [
+    "The RUNTIME config for `pnpm accept`, used only by `tsx --tsconfig`. tsc never",
+    "reads it.",
+    "",
+    "It exists because tsconfig.json next to it cannot do both jobs. tsx resolves a",
+    "file's compilerOptions by matching it against the tsconfig's `include`; the",
+    "sibling tsconfig.json includes only `src/**/*.ts`, so app files compiled during",
+    "a run match nothing and fall back to esbuild's defaults — which means the",
+    "CLASSIC JSX transform, and `React is not defined` the moment a clause renders an",
+    "email template. Widening the sibling's `include` instead would drag app .tsx",
+    "into the acceptance package's own `tsc --noEmit`, which has no DOM lib.",
+    "",
+    "So: same paths, same jsx, but an `include` that covers everything a clause can",
+    "reach."
+  ],
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": {
+      "@/*": ["../../apps/web/src/*"]
+    },
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.ts", "../../apps/web/src/**/*.ts", "../../apps/web/src/**/*.tsx"]
+}
