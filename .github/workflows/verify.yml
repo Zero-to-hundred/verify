@@ -42,8 +42,16 @@ on:
 
 permissions:
   contents: read
+  # The only permission signing needs: the job's OIDC token is the identity
+  # Sigstore binds the certificate to. `attestations: write` is gone with
+  # `attest-build-provenance` — see the signing step for why.
   id-token: write
-  attestations: write
+
+env:
+  # The tag this workflow is published under. Used twice: to check out the
+  # verifier's own code, and to state the identity the signature must carry.
+  # **Bump it in the same commit that moves the tag.**
+  VERIFY_REF: v0
 
 jobs:
   verify:
@@ -81,7 +89,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Zero-to-hundred/verify
-          ref: v0
+          ref: ${{ env.VERIFY_REF }}
           path: .z2h-verify
           persist-credentials: false
 
@@ -120,6 +128,11 @@ jobs:
         run: |
           set -e
           pnpm exec tsx tooling/lint-schema.ts
+          # Next generates route types (`LayoutProps` and friends) into
+          # `.next/types` during a build, and `tsc` cannot see them before one.
+          # The kit's own `typecheck` gets this from turbo's `dependsOn: ^build`;
+          # invoking tsc directly has to ask for the build itself.
+          pnpm --filter @jetpack/web exec next build
           pnpm -r exec tsc --noEmit
           pnpm exec biome check .
           pnpm --filter @jetpack/web exec vitest run
@@ -172,16 +185,57 @@ jobs:
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --out attestation.json
 
-      # Binds the file to THIS workflow, in Z2H's repository, at this commit.
-      # The certificate it issues carries the Source Repository Owner Identifier
-      # — GitHub's numeric id for the account that owns the seller's repo — which
-      # is what proves the submitting seller controls it. Nothing is minted or
-      # pasted; the identity is a side effect of signing.
-      - name: Sign it
-        id: attest
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      # Signed with cosign against the public Sigstore, not with
+      # `actions/attest-build-provenance`.
+      #
+      # GitHub's attestation store refuses user-owned private repositories
+      # outright — "Feature not available for user-owned private repositories" —
+      # and that is exactly what a seller has. Sigstore has no such rule, and the
+      # trust model is unchanged: the same Fulcio certificate, carrying the same
+      # extensions, including the Source Repository Owner Identifier that proves
+      # which account owns the code. Keyless, from the job's OIDC token; there is
+      # no key and no secret anywhere in this workflow.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
-          subject-path: attestation.json
+          cosign-release: v3.1.3
+
+      - name: Sign the attestation
+        run: cosign sign-blob --yes --bundle attestation.json.sigstore attestation.json
+
+      # Verify our own signature before handing it to anyone. A bundle that does
+      # not verify must fail the run that made it, not the seller's publish an
+      # hour later — by then the failure looks like their fault.
+      #
+      # The identity is built from VERIFY_REF rather than `github.workflow_ref`,
+      # which in a called workflow resolves to the *caller's* entry workflow. The
+      # certificate's SAN is this reusable workflow, which is the whole point.
+      - name: Verify our own signature
+        run: |
+          cosign verify-blob \
+            --bundle attestation.json.sigstore \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/Zero-to-hundred/verify/.github/workflows/verify.yml@refs/tags/${{ env.VERIFY_REF }}" \
+            attestation.json
+
+      # `continue-on-error` makes a step's *conclusion* `success` even when it
+      # failed; only `outcome` carries the truth, and the REST API does not
+      # expose it. Writing it here puts the real result on the run page, where
+      # reading the wrong field is no longer possible.
+      - name: Summarise what actually passed
+        if: always()
+        run: |
+          {
+            echo "| Claim | Outcome |"
+            echo "|---|---|"
+            echo "| setup | ${{ steps.setup.outcome }} |"
+            echo "| verify | ${{ steps.verify.outcome }} |"
+            echo "| acceptance | ${{ steps.acceptance.outcome }} |"
+            echo "| e2e | ${{ steps.e2e.outcome }} |"
+            echo "| grade | ${{ steps.grade.outcome }} |"
+            echo ""
+            echo "_A failing claim is recorded in the attestation, not hidden._"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish the attestation and its bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -189,5 +243,5 @@ jobs:
           name: z2h-verified
           path: |
             attestation.json
-            ${{ steps.attest.outputs.bundle-path }}
+            attestation.json.sigstore
           if-no-files-found: error

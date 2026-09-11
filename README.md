@@ -47,9 +47,7 @@ stamped by GitHub's identity service, not written by anybody.
 Download `attestation.json` and its bundle from the run linked on the listing:
 
 ```bash
-gh attestation verify attestation.json \
-  --repo <owner>/<their-repo> \
-  --signer-workflow Zero-to-hundred/verify/.github/workflows/verify.yml@v0
+cosign verify-blob   --bundle attestation.json.sigstore   --certificate-oidc-issuer https://token.actions.githubusercontent.com   --certificate-identity "https://github.com/Zero-to-hundred/verify/.github/workflows/verify.yml@refs/tags/v1"   attestation.json
 ```
 
 If that fails, the badge is false. It is that simple, and you do not have to take
@@ -58,12 +56,7 @@ the marketplace's word for any of it.
 To see the identity in full:
 
 ```bash
-gh attestation verify attestation.json \
-  --repo <owner>/<their-repo> \
-  --signer-workflow Zero-to-hundred/verify/.github/workflows/verify.yml@v0 \
-  --format json \
-  | jq '.[0].verificationResult.signature.certificate
-      | {sourceRepositoryURI, sourceRepositoryOwnerID, buildSignerURI}'
+cosign verify-blob   --bundle attestation.json.sigstore   --certificate-oidc-issuer https://token.actions.githubusercontent.com   --certificate-identity "https://github.com/Zero-to-hundred/verify/.github/workflows/verify.yml@refs/tags/v1"   attestation.json
 ```
 
 `buildSignerURI` must be this workflow. `sourceRepositoryOwnerID` is GitHub's
@@ -104,6 +97,13 @@ records the organisation's id, not yours, so the marketplace cannot tell it is
 you.
 
 Push, wait for the run, then run `/publish-listing`.
+
+**Your repository stays private.** The signature goes to the public Sigstore
+transparency log, which records the repository name, the commit hash, the
+signing workflow and the numeric id of the account that owns the repo — and
+nothing else. Not your code, not the attestation's contents, not your results.
+Because buyers cannot open a private repository, the badge links to a Zero to
+Hundred verification page rather than to the run.
 
 ---
 

@@ -6,7 +6,9 @@
   "description": "Vendored copy of Jetpack's acceptance runner. Executed by the Z2H verify workflow from this repo, never from the repository being verified.",
   "dependencies": {
     "drizzle-orm": "0.45.2",
-    "tsx": "4.23.12"
+    "tsx": "4.23.12",
+    "@jetpack/db": "link:../../packages/db",
+    "@jetpack/doctor": "link:../../packages/doctor"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
