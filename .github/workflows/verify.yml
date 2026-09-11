@@ -79,11 +79,16 @@ jobs:
     # See "THE JOB BUDGET" in the header for what this is sized against.
     timeout-minutes: 60
 
-    # Acceptance runs against a real database, not an embedded one: the claim is
-    # that the feature works, and a fake would be verifying the fake.
+    # Acceptance runs against a real Postgres, handed to the runner through
+    # `ACCEPT_DATABASE_URL`. Embedded PGlite cannot be used here: `next dev`
+    # opens it from several module realms at once and it aborts, after which
+    # every write returns 500. See guide/KNOWN-ISSUES.md.
     services:
       postgres:
-        image: postgres:17
+        # pgvector's image, not stock postgres: `features/ai` declares a vector
+        # column, so `CREATE EXTENSION vector` runs during migration and a plain
+        # postgres image fails it. Same server, extension available.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_PASSWORD: z2h
           POSTGRES_DB: z2h_accept
