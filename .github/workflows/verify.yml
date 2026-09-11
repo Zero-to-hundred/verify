@@ -104,10 +104,20 @@ jobs:
 
       # The verifier's own, resolved separately so the seller's lockfile cannot
       # decide what the runner or the compose tool are made of.
+      # `--ignore-workspace` is load-bearing. `.z2h-verify` sits inside the
+      # seller's checkout, so without it pnpm walks up, finds their
+      # `pnpm-workspace.yaml`, and installs *their* workspace instead — reporting
+      # "Scope: all 9 workspace projects" and leaving the verifier's own
+      # dependencies uninstalled, which then fails as ERR_MODULE_NOT_FOUND.
+      #
+      # No `--frozen-lockfile`: a lockfile cannot exist for these, because the
+      # `link:` targets only exist inside a seller's checkout. Every registry
+      # dependency is pinned to an exact version instead, which is the part a
+      # lockfile would have been doing here.
       - name: Install the verifier's dependencies
         run: |
-          pnpm --dir .z2h-verify/acceptance install --frozen-lockfile
-          pnpm --dir .z2h-verify/compose install --frozen-lockfile
+          pnpm --dir .z2h-verify/acceptance install --ignore-workspace
+          pnpm --dir .z2h-verify/compose install --ignore-workspace
 
       - run: pnpm exec playwright install --with-deps chromium
 
@@ -217,6 +227,19 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity "https://github.com/Zero-to-hundred/verify/.github/workflows/verify.yml@refs/tags/${{ env.VERIFY_REF }}" \
             attestation.json
+
+      # A failed e2e step costs the seller their badge, so they have to be able
+      # to find out why. Without this the only evidence is a log line.
+      - name: Publish the browser report when e2e failed
+        if: steps.e2e.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
       # `continue-on-error` makes a step's *conclusion* `success` even when it
       # failed; only `outcome` carries the truth, and the REST API does not
