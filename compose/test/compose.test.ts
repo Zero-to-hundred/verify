@@ -129,3 +129,31 @@ test.each(["schema.ts", "integrity.ts"])(
     ).toBe(original);
   },
 );
+
+/**
+ * The referee's transpilation config is vendored, never inherited.
+ *
+ * `paths` is a module-resolution table. A config that `extends` something from
+ * the repository being verified lets a seller map `@/features/*` at stubs and
+ * redirect what the runner loads — without touching a single fenced file, and
+ * without the integrity check having anything to say about it.
+ */
+test("the vendored runner config inherits nothing from the seller", () => {
+  const tsconfig = JSON.parse(
+    readFileSync(
+      join(KIT_ROOT, "z2h", "verify-workflow", "public-repo", "acceptance", "tsconfig.run.json"),
+      "utf8",
+    ),
+  ) as Record<string, unknown>;
+
+  expect(
+    tsconfig.extends,
+    "the vendored tsconfig has an `extends`. Inside a seller's checkout that " +
+      "resolves to their file, and `paths` there decides what the referee loads.",
+  ).toBeUndefined();
+
+  // The one thread that must remain: their specs import their product this way.
+  expect((tsconfig.compilerOptions as { paths: Record<string, string[]> }).paths).toEqual({
+    "@/*": ["../../apps/web/src/*"],
+  });
+});

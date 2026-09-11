@@ -95,6 +95,16 @@ export const KIT_FILES: readonly string[] = [
   // Also executed by path in the verify step, so also referees.
   "tooling/check-dead-utilities.mts",
   "design/check.ts",
+  // Not executed, but read by tools the verify step executes — and each one
+  // decides what "passed" means. `vitest.config.ts` with an empty `include`
+  // passes zero tests; `playwright.config.ts` pointed at an empty `testDir`
+  // passes zero flows; `biome.json` with its rules off passes any code;
+  // `tsconfig.base.json` with `strict: false` passes types it should not.
+  // Config is a referee whenever a referee reads it.
+  "apps/web/vitest.config.ts",
+  "playwright.config.ts",
+  "biome.json",
+  "tsconfig.base.json",
 ];
 
 function sha256(content: Buffer | string): string {
