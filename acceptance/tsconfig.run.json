@@ -1,26 +1,37 @@
 {
   "//": [
-    "The RUNTIME config for `pnpm accept`, used only by `tsx --tsconfig`. tsc never",
-    "reads it.",
-    "",
-    "It exists because tsconfig.json next to it cannot do both jobs. tsx resolves a",
-    "file's compilerOptions by matching it against the tsconfig's `include`; the",
-    "sibling tsconfig.json includes only `src/**/*.ts`, so app files compiled during",
-    "a run match nothing and fall back to esbuild's defaults — which means the",
-    "CLASSIC JSX transform, and `React is not defined` the moment a clause renders an",
-    "email template. Widening the sibling's `include` instead would drag app .tsx",
-    "into the acceptance package's own `tsc --noEmit`, which has no DOM lib.",
-    "",
-    "So: same paths, same jsx, but an `include` that covers everything a clause can",
-    "reach."
+    "Vendored by `pnpm verify-repo:sync`. Do not add `extends` — a config",
+    "inherited from the repository being verified lets the seller redirect",
+    "what the referee loads. `z2h/integrity.test.ts` fails the build if one",
+    "appears."
   ],
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"],
+    "target": "ES2022",
+    "lib": [
+      "ES2022"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": [
+      "node"
+    ],
+    "jsx": "react-jsx",
     "paths": {
-      "@/*": ["../../apps/web/src/*"]
-    },
-    "jsx": "react-jsx"
+      "@/*": [
+        "../../apps/web/src/*"
+      ]
+    }
   },
-  "include": ["src/**/*.ts", "../../apps/web/src/**/*.ts", "../../apps/web/src/**/*.tsx"]
+  "include": [
+    "src/**/*.ts",
+    "../../apps/web/src/**/*.ts",
+    "../../apps/web/src/**/*.tsx"
+  ]
 }
