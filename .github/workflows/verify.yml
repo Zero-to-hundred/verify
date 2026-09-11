@@ -178,7 +178,12 @@ jobs:
         id: acceptance
         continue-on-error: true
         env:
-          DATABASE_URL: postgres://postgres:z2h@localhost:5432/z2h_accept
+          # `ACCEPT_DATABASE_URL`, not `DATABASE_URL`: the runner ignores the
+          # latter on purpose so an acceptance run can never touch a real
+          # database. This is the explicit opt-in, and it is what keeps embedded
+          # PGlite out of the way — `next dev` opens it from several module
+          # realms at once and it aborts, failing every write with a 500.
+          ACCEPT_DATABASE_URL: postgres://postgres:z2h@localhost:5432/z2h_accept
         # Z2H's runner, from `.z2h-verify`, against the seller's workspace and
         # their own per-feature `accept.ts` specs. `JETPACK_PROJECT_ROOT` names
         # the tree under test rather than letting the runner walk up from its own

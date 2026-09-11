@@ -40,7 +40,25 @@ export function acceptEnv(): NodeJS.ProcessEnv {
     BETTER_AUTH_SECRET: "z2h-acceptance-secret-not-a-credential",
     BETTER_AUTH_URL: ACCEPT_BASE_URL,
     NEXT_PUBLIC_SITE_URL: ACCEPT_BASE_URL,
-    DATABASE_URL: "",
+    /**
+     * Embedded PGlite by default, and a real Postgres when one is offered
+     * explicitly through `ACCEPT_DATABASE_URL`.
+     *
+     * The developer's own `DATABASE_URL` is still ignored — that is the point of
+     * forcing it, and an acceptance run must never touch a real database by
+     * accident. But embedded PGlite cannot survive this server: `next dev`
+     * evaluates server modules in several isolated module realms, so `db.ts`
+     * holds no process-wide singleton and three or four PGlite instances open
+     * the same directory. PGlite detects the multi-writer and aborts
+     * (`RuntimeError: Aborted()`), after which every write returns 500 —
+     * intermittently on a laptop, reliably on a CI runner, where it failed every
+     * `route` clause for a reason that had nothing to do with the product.
+     * See `guide/KNOWN-ISSUES.md`.
+     *
+     * A verifier can hand us a throwaway Postgres; opting in by a separate
+     * variable keeps the safety property while removing the hazard.
+     */
+    DATABASE_URL: process.env.ACCEPT_DATABASE_URL ?? "",
     RESEND_API_KEY: "",
     GOOGLE_CLIENT_ID: "",
     GOOGLE_CLIENT_SECRET: "",
