@@ -1,0 +1,91 @@
+# Jetpack — Licence
+
+**Copyright © 2026 Zero to Hundred. All rights reserved.**
+
+An official Zero to Hundred asset.
+
+This software is **not** open source: you have to buy a licence. But once you
+have, the code is effectively yours — with one narrow exception in section 2.
+
+## 1. What you get
+
+On payment, you are granted a perpetual, worldwide, non-exclusive, irrevocable
+licence to:
+
+- **Use** the source code to build and run anything you like, commercially or
+  otherwise, in as many products and environments as you want.
+- **Modify** it however you see fit — rewrite any part of it, or all of it.
+- **Redistribute and resell** it, modified or unmodified, as part of a product
+  or service of your own — with one line drawn in section 2, which is about
+  reselling it *as a starter kit* rather than about anything you build.
+- **Sublicense** it to your own customers on whatever terms you choose.
+- **Keep using** the version you received, forever, including after any updates
+  entitlement ends.
+
+There is no seat limit and no per-project limit on any of the above.
+
+## 2. Reselling the kit itself
+
+Section 1 lets you resell freely. This section draws the one line inside that:
+
+- **Reselling a product you built with it — free, always.** Ship it, sell it,
+  transfer it, list it. However much or little of this code it contains, it is
+  your product. Nothing here restricts that, and nothing ever will.
+- **Reselling the kit *as a kit* — only with meaningful change.** If what you
+  are selling is a starter kit, boilerplate, template or scaffold, and it is
+  substantially this one, it needs real work of your own first.
+
+**"Meaningful change" means work a buyer would recognise as yours** — a
+different stack, a different problem, a different set of features. Restyling it,
+renaming it, or swapping the copy is not it.
+
+If you are unsure which side of the line you are on, ask; a written answer is
+free and quicker than the alternative.
+
+## 3. Two things about identity
+
+Narrow, and about names rather than code:
+
+1. **Do not pass your version off as the original.** Do not represent it as
+   published, endorsed or supported by Zero to Hundred.
+2. **Do not use the Zero to Hundred name, logo, or other trademarks** to market
+   your version without written permission.
+
+Stating factually that your product is *derived from* or *built on* it is fine
+and always will be.
+
+## 4. Updates
+
+A licence includes updates for twelve months from purchase. After that, the
+software you already have remains yours under this licence; further updates need
+a renewal. Nothing about the rights in section 1 expires.
+
+## 5. Refunds
+
+Thirty days from purchase, no questions asked about the code. Ask, and keep what
+you have downloaded.
+
+## 6. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+If you redistribute or resell this code, **you** are responsible for what you
+sell and to whom. Zero to Hundred gives no warranty to your customers and has no
+relationship with them.
+
+## 7. Liability
+
+Nothing in this licence limits liability that cannot be limited by law,
+including for death or personal injury caused by negligence, or for fraud.
+
+Otherwise Zero to Hundred's total liability to you is limited to the amount you
+paid for the licence.
+
+## 8. Third-party code
+
+The dependencies this kit installs are under their own licences, listed in
+`pnpm-lock.yaml` and in each package's own metadata. Nothing here changes them,
+and section 1 does not grant you any rights over them. If you redistribute, those
+licences travel with the code and remain your responsibility to honour.

@@ -1,0 +1,193 @@
+# Z2H Verified — the pipeline the seller calls and cannot edit.
+#
+# THIS FILE DOES NOT BELONG IN A SELLER'S REPOSITORY. It is the source for
+# `Zero-to-hundred/verify/.github/workflows/verify.yml`, published from a public
+# Z2H repo and referenced by tag. A copy living in the repo being verified would
+# be a copy the seller can change. See `guide/VERIFICATION.md`.
+#
+# What is and is not trusted here:
+#
+#   · The seller's SOURCE is the subject. Verifying it is the point.
+#   · The seller's SCRIPTS are not trusted, and no step below invokes one.
+#     `pnpm verify` and `pnpm accept:all` are entries in their `package.json`;
+#     redefining `verify` as `exit 0` is a one-line change. Every step runs the
+#     underlying tool directly, by path. This is why `package.json#scripts` and
+#     `turbo.json` are NOT in the integrity manifest — nothing they contain can
+#     change the outcome, so hashing them would only punish a buyer for adding a
+#     `deploy` script.
+#   · The seller's KIT MANIFEST is not trusted. Canonical hashes are fetched
+#     from Z2H by the compose tool, never read from the checkout.
+#   · The RUNNER and the COMPOSE TOOL are not the seller's either. Both are
+#     checked out from this repository into `.z2h-verify/` and executed from
+#     there, so the code that decides whether a feature passed its spec — and
+#     the code that writes the attestation — are Z2H's, at this tag. Nothing is
+#     published to npm; the git tag is the pin.
+#   · Turbo is bypassed entirely rather than merely forced: a cached task
+#     replays a previous pass without running anything, and its config is the
+#     seller's.
+name: z2h-verify
+
+on:
+  workflow_call:
+    inputs:
+      kit-version:
+        description: The kit version the listing declares, from listing.config.ts.
+        required: true
+        type: string
+      z2h-origin:
+        description: Where the canonical kit manifests are served.
+        required: false
+        type: string
+        default: https://zerotohundred.ai
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Acceptance runs against a real database, not an embedded one: the claim is
+    # that the feature works, and a fake would be verifying the fake.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: z2h
+          POSTGRES_DB: z2h_accept
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout the seller's repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The verifier's own code, from this repository at this tag.
+      #
+      # `ref` is a literal rather than `${{ github.workflow_ref }}` (which is a
+      # workflow path with a ref appended, not a git ref) and rather than a
+      # caller input: an input would let a seller ask for an older, weaker tag
+      # while still appearing to call the current one. It is Z2H's repo either
+      # way, so the risk is downgrade rather than substitution — but a downgrade
+      # is enough. **Bump this line in the same commit that moves the tag.**
+      - name: Checkout the verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zero-to-hundred/verify
+          ref: v0
+          path: .z2h-verify
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install the seller's dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The verifier's own, resolved separately so the seller's lockfile cannot
+      # decide what the runner or the compose tool are made of.
+      - name: Install the verifier's dependencies
+        run: |
+          pnpm --dir .z2h-verify/acceptance install --frozen-lockfile
+          pnpm --dir .z2h-verify/compose install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # ---- the six claims, each a direct invocation -----------------------
+      #
+      # `continue-on-error` on every one: a red step is a RESULT the attestation
+      # must record, not a reason to abandon the run. An attestation that says
+      # `verify: false` is exactly as useful as one that says true.
+
+      - name: setup
+        id: setup
+        continue-on-error: true
+        run: pnpm exec tsx tooling/setup.ts
+
+      - name: verify
+        id: verify
+        continue-on-error: true
+        run: |
+          set -e
+          pnpm exec tsx tooling/lint-schema.ts
+          pnpm -r exec tsc --noEmit
+          pnpm exec biome check .
+          pnpm --filter @jetpack/web exec vitest run
+          pnpm exec tsx tooling/check-dead-utilities.mts
+          pnpm exec tsx design/check.ts
+
+      - name: acceptance
+        id: acceptance
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgres://postgres:z2h@localhost:5432/z2h_accept
+        # Z2H's runner, from `.z2h-verify`, against the seller's workspace and
+        # their own per-feature `accept.ts` specs. `JETPACK_PROJECT_ROOT` names
+        # the tree under test rather than letting the runner walk up from its own
+        # location and find whichever root is nearer.
+        run: |
+          JETPACK_PROJECT_ROOT="$GITHUB_WORKSPACE" \
+            pnpm --dir .z2h-verify/acceptance exec tsx src/cli.ts --all
+
+      - name: e2e
+        id: e2e
+        continue-on-error: true
+        run: pnpm exec playwright test
+
+      - name: grade
+        id: grade
+        continue-on-error: true
+        run: pnpm exec tsx tooling/grade.ts --strict
+
+      # ---- compose, sign, publish ----------------------------------------
+      #
+      # No `continue-on-error` from here down. A failure to compose or sign is a
+      # failure to produce evidence, which is different from evidence of failure.
+
+      - name: Compose the attestation
+        # Z2H's compose tool, from `.z2h-verify`. Not npm: the git tag is the
+        # pin, and a buyer can read the whole pipeline in one public repo.
+        run: |
+          pnpm --dir .z2h-verify/compose exec tsx src/cli.ts compose \
+            --root "$GITHUB_WORKSPACE" \
+            --setup-exit      "${{ steps.setup.outcome == 'success' && '0' || '1' }}" \
+            --verify-exit     "${{ steps.verify.outcome == 'success' && '0' || '1' }}" \
+            --acceptance-exit "${{ steps.acceptance.outcome == 'success' && '0' || '1' }}" \
+            --e2e-exit        "${{ steps.e2e.outcome == 'success' && '0' || '1' }}" \
+            --manifest-url "${{ inputs.z2h-origin }}/kits/jetpack/${{ inputs.kit-version }}/manifest.json" \
+            --kit jetpack \
+            --kit-version "${{ inputs.kit-version }}" \
+            --grade-file .jetpack/grade.json \
+            --commit "$GITHUB_SHA" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --out attestation.json
+
+      # Binds the file to THIS workflow, in Z2H's repository, at this commit.
+      # The certificate it issues carries the Source Repository Owner Identifier
+      # — GitHub's numeric id for the account that owns the seller's repo — which
+      # is what proves the submitting seller controls it. Nothing is minted or
+      # pasted; the identity is a side effect of signing.
+      - name: Sign it
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: attestation.json
+
+      - name: Publish the attestation and its bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: z2h-verified
+          path: |
+            attestation.json
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error

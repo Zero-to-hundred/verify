@@ -1,0 +1,13 @@
+{
+  "name": "@Zero-to-hundred/verify-compose",
+  "version": "0.1.0",
+  "description": "Composes a z2h-verified@1 attestation from a verification run. Reads nothing the seller could have written.",
+  "type": "module",
+  "bin": {
+    "verify-compose": "./src/cli.ts"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}
