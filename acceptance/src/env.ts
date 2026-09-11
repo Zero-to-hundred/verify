@@ -29,6 +29,15 @@ export function acceptEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
     PGLITE_DATA_DIR: ACCEPT_DATA_DIR,
+    /**
+     * A fixed secret, for the same reason every provider is forced to a fake:
+     * an acceptance run must not depend on what the operator happens to have.
+     * Inheriting it worked on a laptop with a populated `.env` and failed on a
+     * clean CI runner, where Better Auth refused the default and every sign-in
+     * returned 500 - so `route` clauses failed for a reason with nothing to do
+     * with the product. Not a credential: this database is thrown away.
+     */
+    BETTER_AUTH_SECRET: "z2h-acceptance-secret-not-a-credential",
     BETTER_AUTH_URL: ACCEPT_BASE_URL,
     NEXT_PUBLIC_SITE_URL: ACCEPT_BASE_URL,
     DATABASE_URL: "",

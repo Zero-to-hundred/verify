@@ -144,7 +144,11 @@ jobs:
           # invoking tsc directly has to ask for the build itself.
           pnpm --filter @jetpack/web exec next build
           pnpm -r exec tsc --noEmit
-          pnpm exec biome check .
+          # Explicit paths, not `.`: the verifier is checked out at
+          # `.z2h-verify/` inside the workspace, and `biome check .` linted
+          # Z2H's own vendored files, failing the seller's verify step on our
+          # formatting. A tool pointed at "everything" finds the referee too.
+          pnpm exec biome check apps packages tooling design e2e z2h
           pnpm --filter @jetpack/web exec vitest run
           pnpm exec tsx tooling/check-dead-utilities.mts
           pnpm exec tsx design/check.ts
