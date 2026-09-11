@@ -37,6 +37,44 @@ function collectSpecs(suites: PlaywrightSuite[] | undefined): PlaywrightSpec[] {
   return out;
 }
 
+/**
+ * What a Playwright run means, given how many tests passed and what failed.
+ *
+ * Separated from running the browser so the rules can be tested directly. The
+ * rule that needed it: **zero tests is a failure, not a pass.** The clause used
+ * to return green whenever nothing had *failed*, so a run reported
+ * `0 Playwright test(s) passed` and a reader skimmed it as success. A renamed
+ * spec, a `testDir` that no longer covers it, or a stray filter all land there.
+ */
+export function e2eVerdict(
+  spec: string,
+  passed: number,
+  failed: number,
+  failures: Failure[],
+): { summary: string; failures: Failure[] } {
+  if (failures.length === 0 && passed === 0) {
+    return {
+      summary: `no Playwright tests ran in ${spec}`,
+      failures: [
+        {
+          message:
+            `${spec} ran 0 tests, expected >= 1. A spec that ran nothing has proved ` +
+            "nothing. Check the file still exists and that playwright.config.ts still " +
+            "matches it.",
+        },
+      ],
+    };
+  }
+
+  return {
+    summary:
+      failures.length === 0
+        ? `${passed} Playwright test(s) passed in ${spec}`
+        : `${failed} Playwright test(s) failed in ${spec}`,
+    failures,
+  };
+}
+
 export async function runE2eClause(spec: string): Promise<ClauseResult> {
   const started = Date.now();
   const failures: Failure[] = [];
@@ -92,29 +130,8 @@ export async function runE2eClause(spec: string): Promise<ClauseResult> {
 
   const passed = report.stats?.expected ?? 0;
   const failed = report.stats?.unexpected ?? 0;
-  /**
-   * **Zero tests is a failure, not a pass.** A spec that ran nothing has proved
-   * nothing, and reporting it green is the shape of bug this runner exists to
-   * catch. Seen in the wild as `e2e: e2e/admin.spec.ts - 0 Playwright test(s)
-   * passed`, which a reader skims as success. A renamed spec, a `testDir` that
-   * no longer covers it, or a stray filter all land here.
-   */
-  if (failures.length === 0 && passed === 0) {
-    return finish(started, spec, `no Playwright tests ran in ${spec}`, [
-      {
-        message:
-          `${spec} ran zero tests, which is not a pass: a spec that ran nothing has ` +
-          "proved nothing. Check the file still exists and that playwright.config.ts " +
-          "still matches it.",
-      },
-    ]);
-  }
-
-  const summary =
-    failures.length === 0
-      ? `${passed} Playwright test(s) passed in ${spec}`
-      : `${failed} Playwright test(s) failed in ${spec}`;
-  return finish(started, spec, summary, failures);
+  const { summary, failures: verdictFailures } = e2eVerdict(spec, passed, failed, failures);
+  return finish(started, spec, summary, verdictFailures);
 }
 
 function readReport(file: string): PlaywrightJson | undefined {

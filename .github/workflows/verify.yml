@@ -56,7 +56,11 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The whole definition of done on a cold runner: setup, a Next build, the
+    # full verify suite, every acceptance spec against a real Postgres, and 58
+    # browser tests. A run cancelled at the deadline produces no attestation at
+    # all, which is worse than a slow one — it looks like nothing happened.
+    timeout-minutes: 60
 
     # Acceptance runs against a real database, not an embedded one: the claim is
     # that the feature works, and a fake would be verifying the fake.
@@ -149,7 +153,7 @@ jobs:
           # Z2H's own vendored files, failing the seller's verify step on our
           # formatting. A tool pointed at "everything" finds the referee too.
           pnpm exec biome check apps packages tooling design e2e z2h
-          pnpm --filter @jetpack/web exec vitest run
+          pnpm --filter @jetpack/web exec vitest run --retry=0
           pnpm exec tsx tooling/check-dead-utilities.mts
           pnpm exec tsx design/check.ts
 
@@ -178,7 +182,11 @@ jobs:
       - name: e2e
         id: e2e
         continue-on-error: true
-        run: pnpm exec playwright test
+        # `--retries=0` on the command line, where it overrides the config: a
+        # test that only passes on a second attempt has not passed. Retries are
+        # a reasonable habit in a seller's own CI and the wrong setting here,
+        # because this run is evidence rather than feedback.
+        run: pnpm exec playwright test --retries=0
 
       - name: grade
         id: grade
