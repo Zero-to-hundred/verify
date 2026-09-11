@@ -25,6 +25,20 @@
 #   · Turbo is bypassed entirely rather than merely forced: a cached task
 #     replays a previous pass without running anything, and its config is the
 #     seller's.
+# THE JOB BUDGET: 60 minutes, set on the job below. GitHub does not allow an
+# expression in `timeout-minutes`, so it cannot be a constant — it is documented
+# here instead, because the number is a decision and not a guess.
+#
+# A cold run spends roughly: install 2-3 min, Playwright browsers 1-2 min, setup
+# under a minute, verify 8-12 min (a Next build plus typecheck, lint, unit tests,
+# contrast), acceptance 10-15 min against a real Postgres, e2e 6-10 min for 58
+# browser tests, grade 1-2 min. Call it 30-45 minutes, with headroom for a slow
+# runner.
+#
+# Raising it is usually right when a seller's suite has grown. Lowering it is
+# usually wrong: a run cancelled at the deadline produces no attestation at all,
+# which reads as "nothing happened" rather than as a failure, and that is how
+# run 6 of the proving sequence was lost.
 name: z2h-verify
 
 on:
@@ -39,6 +53,12 @@ on:
         required: false
         type: string
         default: https://zerotohundred.ai
+
+# One run per ref. A seller pushing three commits in a minute gets one
+# verification of the newest, not three pipelines they pay for.
+concurrency:
+  group: z2h-verified-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -56,10 +76,7 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # The whole definition of done on a cold runner: setup, a Next build, the
-    # full verify suite, every acceptance spec against a real Postgres, and 58
-    # browser tests. A run cancelled at the deadline produces no attestation at
-    # all, which is worse than a slow one — it looks like nothing happened.
+    # See "THE JOB BUDGET" in the header for what this is sized against.
     timeout-minutes: 60
 
     # Acceptance runs against a real database, not an embedded one: the claim is

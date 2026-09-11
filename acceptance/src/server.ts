@@ -93,6 +93,17 @@ export function foreignServerError(url: string, port: number): string {
 }
 
 let server: ChildProcess | undefined;
+/**
+ * The server's recent output, kept for the whole run rather than only for the
+ * boot.
+ *
+ * A boot failure was already diagnosable; a *runtime* failure was not. A clause
+ * that got `500` from the app reported the status and nothing else, because the
+ * server's stack trace went into a buffer nobody read — which is the same bug as
+ * `.resume()` discarding it, one step further in. `serverOutput()` is what the
+ * reporter prints when a run fails.
+ */
+let serverTail: { push: (chunk: string) => void; text: () => string } | undefined;
 let booting: Promise<void> | undefined;
 
 async function isUp(): Promise<boolean> {
@@ -145,7 +156,8 @@ export async function ensureServer(): Promise<void> {
     });
     // Read both streams rather than draining them: an unread pipe fills and
     // blocks the child, and the bytes are the diagnosis when a boot fails.
-    const tail = createOutputTail();
+    const tail = createOutputTail(20_000);
+    serverTail = tail;
     server.stdout?.setEncoding("utf8");
     server.stderr?.setEncoding("utf8");
     server.stdout?.on("data", (chunk: string) => tail.push(chunk));
@@ -161,6 +173,11 @@ export async function ensureServer(): Promise<void> {
     await waitForReady(120_000, tail, () => exit);
   })();
   return booting;
+}
+
+/** What the app printed while the clauses ran. Empty when nothing was captured. */
+export function serverOutput(): string {
+  return serverTail?.text() ?? "";
 }
 
 export function stopServer(): void {

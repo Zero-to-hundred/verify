@@ -10,7 +10,7 @@ import { closeAcceptDb } from "./env";
 import { acquireAcceptLock } from "./lock";
 import { renderTable, summarize } from "./report";
 import { discoverFeatures, runFeatures } from "./runner";
-import { stopServer } from "./server";
+import { serverOutput, stopServer } from "./server";
 import type { AcceptRunResult } from "./types";
 
 const USAGE = `Usage:
@@ -76,6 +76,21 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
+    /**
+     * When a run fails, print what the app said.
+     *
+     * A clause reports the status it got — `POST /api/auth/sign-in returned
+     * 500` — and the reason lives in the server's stack trace, which nothing
+     * was showing. Silent on success, because a passing run does not need a
+     * page of Next output.
+     */
+    if (process.exitCode === 1 && !process.argv.includes("--json")) {
+      const output = serverOutput();
+      if (output) {
+        console.error(`\n─── the app's output during this run ───\n${output}\n`);
+      }
+    }
+
     stopServer();
     await closeAcceptDb();
     releaseLock?.();
